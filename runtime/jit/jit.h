@@ -59,6 +59,7 @@ class JitCodeCache;
 class JitCompileTask;
 class JitMemoryRegion;
 class JitOptions;
+class JniTask : public Task { };
 
 static constexpr int16_t kJitCheckForOSR = -1;
 static constexpr int16_t kJitHotnessDisabled = -2;
@@ -326,7 +327,10 @@ class Jit {
   JitThreadPool* GetThreadPool() const {
     return thread_pool_.get();
   }
-
+  
+  
+  bool AddJniTask(Thread* self, JniTask* task);
+  
   // Stop the JIT by waiting for all current compilations and enqueued compilations to finish.
   EXPORT void Stop();
 

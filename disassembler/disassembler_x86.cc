@@ -17,7 +17,6 @@
 #include "disassembler_x86.h"
 
 #include <inttypes.h>
-
 #include <ostream>
 #include <sstream>
 
@@ -288,12 +287,21 @@ size_t DisassemblerX86::DumpNops(std::ostream& os, const uint8_t* instr) {
   return 0;
 }
 
-size_t DisassemblerX86::DumpInstruction(std::ostream& os, const uint8_t* instr) {
-  size_t nop_size = DumpNops(os, instr);
-  if (nop_size != 0u) {
-    return nop_size;
+void DisassemblerX86::GetInstructionDetails(const uint8_t* instr, x86_instr *insn) {
+  std::ostream out(nullptr);;
+  size_t sz = DumpInstruction(out,instr,insn);
+  if (sz == 0) {
+     insn->opcode = 0x0;
   }
+}
 
+size_t DisassemblerX86::DumpInstruction(std::ostream& os, const uint8_t* instr, x86_instr *insn_x86) {
+  if (os) {
+     size_t nop_size = DumpNops(os, instr);
+     if (nop_size != 0u) {
+            return nop_size;
+      }
+  }
   const InstructionContext ctxt(this, instr);
   instr = ctxt.shadow_instr_;
   const uint8_t* begin_instr = instr;
@@ -1778,17 +1786,30 @@ DISASSEMBLER_ENTRY(cmp,
   size_t actual_bytes_read =
       (instr - begin_instr - (ctxt.vex_.shadow_prefix_length_ - ctxt.vex_.prefix_length_));
   const uint8_t* orig_instr_end = ctxt.orig_instr_ + actual_bytes_read;
-  os << FormatInstructionPointer(ctxt.orig_instr_)
-     << StringPrintf(": %22s    \t%-7s%s%s%s%s%s",
-                     DumpCodeHex(ctxt.orig_instr_, orig_instr_end).c_str(),
-                     prefix_str,
-                     opcode0,
-                     opcode1,
-                     opcode2,
-                     opcode3,
-                     opcode4)
-     << (args.view().empty() ? "" : " ")
-     << args.str() << '\n';
+  if (os) {
+    os << FormatInstructionPointer(ctxt.orig_instr_)
+       << StringPrintf(": %22s    \t%-7s%s%s%s%s%s",
+                       DumpCodeHex(ctxt.orig_instr_, orig_instr_end).c_str(),
+                       prefix_str,
+                       opcode0,
+                       opcode1,
+                       opcode2,
+                       opcode3,
+                       opcode4)
+       << (args.view().empty() ? "" : " ")
+       << args.str() << '\n';
+  }
+  if (insn_x86 != nullptr) {
+     std::string tmp = StringPrintf("%s%s%s%s%s",opcode0,opcode1,opcode2,opcode3,opcode4);
+     strcpy(insn_x86->instr_str,tmp.c_str());
+     /*LOG(INFO) << "op str:" << insn_x86->instr_str;*/
+     insn_x86->size = actual_bytes_read;
+     insn_x86->prefix[0] = prefix[0];
+     insn_x86->prefix[1] = prefix[1];
+     insn_x86->prefix[2] = prefix[2];
+     insn_x86->prefix[3] = prefix[3];
+     insn_x86->opcode = instr;
+  }
   return actual_bytes_read;
 }  // NOLINT(readability/fn_size)
 

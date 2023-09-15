@@ -926,6 +926,16 @@ class Runtime {
   char** GetEnvSnapshot() const {
     return env_snapshot_.GetSnapshot();
   }
+  
+  // Should Auto fast Detection be done.
+  bool IsAutoFastDetect() const {
+    return auto_fast_detect_;
+  }
+
+  // Set Auto Fast Detection.
+  void SetAutoFastDetect(bool value) {
+    auto_fast_detect_ = value;
+  }  
 
   EXPORT void AddSystemWeakHolder(gc::AbstractSystemWeakHolder* holder);
   EXPORT void RemoveSystemWeakHolder(gc::AbstractSystemWeakHolder* holder);
@@ -1558,6 +1568,9 @@ class Runtime {
       static_cast<uint32_t>(DeoptimizationKind::kLast) + 1];
 
   MemMap protected_fault_page_;
+  
+  // Auto Fast JNI detection gate.
+  bool auto_fast_detect_;
 
   uint32_t verifier_logging_threshold_ms_;
 
