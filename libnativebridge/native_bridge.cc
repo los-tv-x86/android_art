@@ -28,6 +28,7 @@
 #include <cstring>
 
 #include "android-base/macros.h"
+#include "android-base/properties.h"
 #include "log/log.h"
 
 #ifdef ART_TARGET_ANDROID
@@ -35,6 +36,9 @@
 #endif
 
 namespace android {
+
+static bool isRanOutsideOfZygote = false;
+
 
 extern "C" {
 
@@ -307,6 +311,23 @@ bool PreInitializeNativeBridge(const char* app_data_dir_in,
   }
 
   if (app_data_dir_in != nullptr) {
+    if (strcmp(app_data_dir_in, ".") == 0){
+        isRanOutsideOfZygote = true;
+        #if defined(__i386__)
+        instruction_set = "arm";
+        #elif defined(__x86_64__)
+          // HACK: until we find a better way to know if the native bridge is for riscv
+          // we just check abilist for the possiblity
+          std::string abiList64 = android::base::GetProperty("ro.system.product.cpu.abilist64", "");
+          std::string abiList = android::base::GetProperty("ro.system.product.cpu.abilist", "");
+          if (abiList64.find("riscv64") != std::string::npos ||
+           abiList.find("riscv64") != std::string::npos) {
+              instruction_set = "riscv64";
+          } else {
+              instruction_set = "arm64";
+          }
+        #endif
+    }
     // Create the path to the application code cache directory.
     // The memory will be release after Initialization or when the native bridge is closed.
     const size_t len = strlen(app_data_dir_in) + strlen(kCodeCacheDir) + 2;  // '\0' + '/'
@@ -342,7 +363,7 @@ static void SetupEnvironment(const NativeBridgeCallbacks* cbs, JNIEnv* env, cons
 
   // Query the bridge for environment values.
   const struct NativeBridgeRuntimeValues* env_values = cbs->getAppEnv(isa);
-  if (env_values == nullptr) {
+  if (env_values == nullptr || isRanOutsideOfZygote) {
     return;
   }
 
@@ -407,6 +428,22 @@ bool InitializeNativeBridge(JNIEnv* env, const char* instruction_set) {
     }
   }
 
+  if (isRanOutsideOfZygote) {
+    #if defined(__i386__)
+    instruction_set = "arm";
+    #elif defined(__x86_64__)
+      // HACK: until we find a better way to know if the native bridge is for riscv
+      // we just check abilist for the possiblity
+      std::string abiList64 = android::base::GetProperty("ro.system.product.cpu.abilist64", "");
+      std::string abiList = android::base::GetProperty("ro.system.product.cpu.abilist", "");
+      if (abiList64.find("riscv64") != std::string::npos ||
+          abiList.find("riscv64") != std::string::npos) {
+          instruction_set = "riscv64";
+      } else {
+          instruction_set = "arm64";
+      }
+    #endif
+  }
   if (g_callbacks->initialize(g_runtime_callbacks, g_app_code_cache_dir, instruction_set)) {
     // TODO(b/419835068): SetupEnvironment is likely not needed anymore and can be removed.
     SetupEnvironment(g_callbacks, env, instruction_set);
