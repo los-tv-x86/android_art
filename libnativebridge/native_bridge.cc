@@ -311,7 +311,7 @@ bool PreInitializeNativeBridge(const char* app_data_dir_in,
   }
 
   if (app_data_dir_in != nullptr) {
-    if (strcmp(app_data_dir_in, ".") == 0){
+    if ((strcmp(app_data_dir_in, ".") == 0) && android::base::GetBoolProperty("persist.native.bridge.outside_of_zygote", false)){
         isRanOutsideOfZygote = true;
         #if defined(__i386__)
         instruction_set = "arm";
