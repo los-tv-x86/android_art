@@ -595,12 +595,16 @@ const char* NativeBridgeGetError() {
 }
 
 bool NativeBridgeIsPathSupported(const char* path) {
+  if (isRanOutsideOfZygote) {
+    return true;
+  }
   if (NativeBridgeInitialized()) {
     if (isCompatibleWith(NAMESPACE_VERSION)) {
       return g_callbacks->isPathSupported(path);
     } else {
       ALOGE("not compatible with version %d, cannot check via library path", NAMESPACE_VERSION);
     }
+    return false;
   }
   return false;
 }
